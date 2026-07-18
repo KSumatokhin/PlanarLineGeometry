@@ -34,8 +34,10 @@ namespace PlanarLineGeometry
 
     public sealed class NormalizationSettings
     {
-        public double LinearTolerance { get; set; } = 1.0;
+        public double LinearTolerance { get; set; } = 0.00001;
         public double AngularToleranceDegrees { get; set; } = 0.1;
+        public bool MergeOverlapping { get; set; } = true;
+        public bool MergeAdjacent { get; set; } = true;
     }
 
     public sealed class GroupDiagnostic

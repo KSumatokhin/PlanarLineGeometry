@@ -36,6 +36,8 @@ dotnet build PlanarLineGeometry.sln -c Release
 
 Current target: .NET Framework 4.7.2 (`net472`).
 
+The conservative defaults are `0.00001` drawing unit for linear comparison and `0.1°` for angular comparison. Applications may pass a larger explicit tolerance when corrective geometry movement is intended. Partial-overlap union and adjacent-interval union are independent settings; exact duplicates are always collapsed.
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).

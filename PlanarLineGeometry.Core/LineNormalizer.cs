@@ -75,7 +75,7 @@ namespace PlanarLineGeometry
             var merged = new List<Interval>();
             foreach (var interval in intervals)
             {
-                if (merged.Count == 0 || interval.Min > merged[merged.Count - 1].Max + settings.LinearTolerance) merged.Add(interval);
+                if (merged.Count == 0 || !ShouldMerge(merged[merged.Count - 1], interval, settings)) merged.Add(interval);
                 else if (interval.Max > merged[merged.Count - 1].Max) merged[merged.Count - 1] = new Interval(merged[merged.Count - 1].Min, interval.Max);
             }
             var offsets = new List<double>(); var maxAngle = 0.0;
@@ -94,6 +94,13 @@ namespace PlanarLineGeometry
         }
 
         private static bool Finite(Point2 p) => !double.IsNaN(p.X) && !double.IsInfinity(p.X) && !double.IsNaN(p.Y) && !double.IsInfinity(p.Y);
+        private static bool ShouldMerge(Interval current, Interval next, NormalizationSettings settings)
+        {
+            if (Math.Abs(current.Min - next.Min) <= Epsilon && Math.Abs(current.Max - next.Max) <= Epsilon) return true;
+            var gap = next.Min - current.Max;
+            if (gap < -Epsilon) return settings.MergeOverlapping;
+            return settings.MergeAdjacent && gap <= settings.LinearTolerance + Epsilon;
+        }
         private static double NormalizeTheta(double a) { a %= Math.PI; if (a < 0) a += Math.PI; return a; }
         private static double AxisAngle(double a, double b) { var x = Math.Abs(a - b) % Math.PI; return Math.Min(x, Math.PI - x); }
         private static bool Compatible(LineInfo a, LineInfo b, double angleTolerance, double linearTolerance)
