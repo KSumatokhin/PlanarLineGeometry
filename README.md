@@ -36,7 +36,10 @@ dotnet build PlanarLineGeometry.sln -c Release
 
 Current target: .NET Framework 4.7.2 (`net472`).
 
+## License
+
+MIT. See [`LICENSE`](LICENSE).
+
 ## Scope
 
 V0 processes straight segments only. Polyline decomposition, T/X topology, junction-box placement, and line-to-polyline assembly are separate future stages and must not be added as branches inside the validated interval-union algorithm.
-
