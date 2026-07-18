@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <Deterministic>true</Deterministic>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>PlanarLineGeometry.Tests</AssemblyName>
+    <RootNamespace>PlanarLineGeometry.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PlanarLineGeometry.Core\PlanarLineGeometry.Core.csproj" />
+  </ItemGroup>
+</Project>
