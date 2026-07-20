@@ -60,12 +60,22 @@ Validated cases:
 Selected 4:    groups 1;   replaced 4;    created 1;    reduction 3
 Selected 4880: groups 840; replaced 4849; created 1679; reduction 3170
 Selected 1102: groups 203; replaced 822;  created 657;  reduction 165
+Selected 828:  groups 140; replaced 553;  created 553;  reduction 0
+Selected 956:  groups 164; replaced 630;  created 623;  reduction 7
 ```
 
 In the 4880-object selection, the four segments from the original failure were
 confirmed to merge into one segment. A second independent 1102-object DWG
 selection also produced the expected result. No groups were rejected in either
 large run.
+
+The 828-object case confirms that axis normalization does not bridge real gaps:
+553 segments were projected to 140 compatible axes, while the number of
+separate intervals remained unchanged. The 956-object case included two axes
+whose measured separation was `0.00008453` drawing unit; with an application
+tolerance of `0.001`, seven intervals were legitimately collapsed. The
+ArchicadDwgOrganizer adapter therefore uses `0.001` as its initial corrective
+tolerance, while the CAD-neutral core keeps its conservative default.
 
 This validates the selection-extension invariant for the observed Archicad DWG
 cases. It is not yet a claim about every possible geometric arrangement.
