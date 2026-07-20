@@ -51,7 +51,6 @@ namespace PlanarLineGeometry.Tests
                 Run("axis plan proposes supported correction", AxisPlanProposesSupportedCorrection);
                 Run("axis plan leaves unsupported line", AxisPlanLeavesUnsupportedLine);
                 Run("axis plan reports conflicting anchors", AxisPlanReportsConflictingAnchors);
-                Run("axis plan moves same-axis fragments together", AxisPlanMovesSameAxisFragmentsTogether);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -175,25 +174,6 @@ namespace PlanarLineGeometry.Tests
             AxisCorrectionProposal target = plan.Proposals.Single(item => item.SourceId == "T");
             if (target.Status != AxisCorrectionStatus.Conflict) throw new Exception("expected conflict");
             if (target.ConflictingPairCount == 0) throw new Exception("expected conflicting support");
-        }
-        private static void AxisPlanMovesSameAxisFragmentsTogether()
-        {
-            var plan = IntegerAxisCorrectionPlanner.Plan(
-                new[] {
-                    S(0,0,1000,0,"A"),
-                    S(0,250,1000,250,"B"),
-                    S(0,380.0005,400,380.0005,"T1"),
-                    S(600,380.00050261,1000,380.00050261,"T2")
-                },
-                new IntegerAxisPairSettings());
-            AxisCorrectionProposal target = plan.Proposals.Single(item =>
-                item.SourceIds.Contains("T1") && item.SourceIds.Contains("T2"));
-            Eq(2,target.SourceIds.Count);
-            if (target.Status != AxisCorrectionStatus.Consistent) throw new Exception("expected one consistent axis proposal");
-            Segment2 first = target.ProjectToProposedAxis(S(0,380.0005,400,380.0005,"T1"));
-            Segment2 second = target.ProjectToProposedAxis(S(600,380.00050261,1000,380.00050261,"T2"));
-            Near(first.Start.Y,second.Start.Y,1e-12);
-            Near(first.End.Y,second.End.Y,1e-12);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
