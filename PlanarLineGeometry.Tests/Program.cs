@@ -62,6 +62,7 @@ namespace PlanarLineGeometry.Tests
                 Run("attached correction follows corrected parent", AttachedCorrectionFollowsCorrectedParent);
                 Run("V2 pipeline produces corrected final axes", V2PipelineProducesCorrectedFinalAxes);
                 Run("V2 pipeline respects endpoint shift limit", V2PipelineRespectsEndpointShiftLimit);
+                Run("V2 pipeline performs final set union after axis correction", V2PipelinePerformsFinalSetUnionAfterAxisCorrection);
                 Run("V2 pipeline keeps one carrier shift across separate intervals", V2PipelineKeepsOneCarrierShiftAcrossSeparateIntervals);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
@@ -308,6 +309,18 @@ namespace PlanarLineGeometry.Tests
             AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(new[] { tilted }, settings);
             Eq(1, result.AngularRejectedCount);
             Near(tilted.End.Y, result.Groups[0].Result.End.Y, 1e-10);
+        }
+        private static void V2PipelinePerformsFinalSetUnionAfterAxisCorrection()
+        {
+            AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(
+                new[] {
+                    S(0,0,0,100,"A1"), S(.0014,100,.0014,200,"A2"), S(-.0012,200,-.0012,300,"A3"),
+                    S(250,0,250,300,"B")
+                },
+                new AxisAlignedLineUnionSettings());
+            AxisAlignedLineUnionGroup a = result.Groups.Single(group => group.SourceIds.Contains("A1"));
+            Eq(3, a.SourceIds.Count);
+            Near(300, a.Result.Length, 1e-8);
         }
         private static void V2PipelineKeepsOneCarrierShiftAcrossSeparateIntervals()
         {

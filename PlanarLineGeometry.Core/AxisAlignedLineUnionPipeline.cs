@@ -112,20 +112,21 @@ namespace PlanarLineGeometry
                         .ThenBy(proposal => proposal.Member.Axis.Id, StringComparer.Ordinal)
                         .First(),
                     StringComparer.Ordinal);
-            var groups = plan.Proposals.Select(proposal =>
+            var correctedGroups = plan.Proposals.Select((proposal, index) =>
             {
                 GroupedAxisCorrectionProposal carrier = carrierProposals[CarrierKey(proposal.Member.Axis.SourceIds)];
                 Segment2 sourceAxis = proposal.Member.Axis.Segment;
                 var result = new Segment2(
                     new Point2(sourceAxis.Start.X + carrier.ShiftX, sourceAxis.Start.Y + carrier.ShiftY),
                     new Point2(sourceAxis.End.X + carrier.ShiftX, sourceAxis.End.Y + carrier.ShiftY),
-                    sourceAxis.SourceId);
+                    "P" + (index + 1).ToString("D6"));
                 return new AxisAlignedLineUnionGroup(
                     proposal.Member.Axis.SourceIds,
                     result,
                     proposal.Member.Role,
                     carrier.ShiftLength);
             }).ToList();
+            List<AxisAlignedLineUnionGroup> groups = FinalizeSetUnion(correctedGroups, settings.AxisEvidence.Normalization);
             return new AxisAlignedLineUnionResult(
                 groups,
                 corrected,
@@ -137,5 +138,40 @@ namespace PlanarLineGeometry
 
         private static string CarrierKey(IReadOnlyList<string> sourceIds) =>
             string.Join("\u001f", sourceIds.OrderBy(id => id, StringComparer.Ordinal));
+
+        private static List<AxisAlignedLineUnionGroup> FinalizeSetUnion(
+            IReadOnlyList<AxisAlignedLineUnionGroup> corrected,
+            NormalizationSettings settings)
+        {
+            Dictionary<string, AxisAlignedLineUnionGroup> byId = corrected.ToDictionary(group => group.Result.SourceId, StringComparer.Ordinal);
+            NormalizationResult union = SelectionInvariantLineNormalizer.Normalize(corrected.Select(group => group.Result), settings);
+            var membersByResult = new Dictionary<Segment2, IReadOnlyList<string>>();
+            foreach (GroupDiagnostic diagnostic in union.Groups)
+                foreach (Segment2 result in diagnostic.ResultSegments)
+                    membersByResult[result] = diagnostic.SourceIds;
+
+            var final = new List<AxisAlignedLineUnionGroup>();
+            foreach (Segment2 result in union.Segments)
+            {
+                IReadOnlyList<string> memberIds;
+                if (!membersByResult.TryGetValue(result, out memberIds)) memberIds = new[] { result.SourceId };
+                List<AxisAlignedLineUnionGroup> members = memberIds.Select(id => byId[id]).ToList();
+                AxisAlignedLineUnionGroup representative = members
+                    .OrderByDescending(group => group.Result.Length)
+                    .ThenBy(group => group.Result.SourceId, StringComparer.Ordinal)
+                    .First();
+                IReadOnlyList<string> originalIds = members
+                    .SelectMany(group => group.SourceIds)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToList();
+                final.Add(new AxisAlignedLineUnionGroup(
+                    originalIds,
+                    result,
+                    representative.Role,
+                    members.Max(group => group.AxisShift)));
+            }
+            return final;
+        }
     }
 }
