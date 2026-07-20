@@ -47,6 +47,10 @@ namespace PlanarLineGeometry.Tests
                 Run("integer axis requires overlap", IntegerAxisRequiresOverlap);
                 Run("integer axis limits distance", IntegerAxisLimitsDistance);
                 Run("integer axis excludes zero width", IntegerAxisExcludesZeroWidth);
+                Run("axis plan anchors strict pair", AxisPlanAnchorsStrictPair);
+                Run("axis plan proposes supported correction", AxisPlanProposesSupportedCorrection);
+                Run("axis plan leaves unsupported line", AxisPlanLeavesUnsupportedLine);
+                Run("axis plan reports conflicting anchors", AxisPlanReportsConflictingAnchors);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -122,6 +126,54 @@ namespace PlanarLineGeometry.Tests
                 new[] { S(0,0,100,0,"A"), S(0,.00008453,100,.00008453,"B") },
                 new IntegerAxisPairSettings());
             Eq(0,result.Pairs.Count);
+        }
+        private static void AxisPlanAnchorsStrictPair()
+        {
+            var plan = IntegerAxisCorrectionPlanner.Plan(
+                new[] { S(0,0,1000,0,"A"), S(0,250,1000,250,"B") },
+                new IntegerAxisPairSettings());
+            Eq(2,plan.AnchorCount);
+        }
+        private static void AxisPlanProposesSupportedCorrection()
+        {
+            var plan = IntegerAxisCorrectionPlanner.Plan(
+                new[] {
+                    S(0,0,1000,0,"A"),
+                    S(0,250,1000,250,"B"),
+                    S(0,380.0005,1000,380.0005,"T")
+                },
+                new IntegerAxisPairSettings());
+            AxisCorrectionProposal target = plan.Proposals.Single(item => item.SourceId == "T");
+            if (target.Status != AxisCorrectionStatus.Consistent) throw new Exception("expected consistent proposal");
+            Near(-.0005,target.ShiftY,1e-10);
+            Eq(2,target.SupportingPairCount);
+        }
+        private static void AxisPlanLeavesUnsupportedLine()
+        {
+            var plan = IntegerAxisCorrectionPlanner.Plan(
+                new[] {
+                    S(0,0,1000,0,"A"),
+                    S(0,250,1000,250,"B"),
+                    S(0,501.25,1000,501.25,"T")
+                },
+                new IntegerAxisPairSettings());
+            AxisCorrectionProposal target = plan.Proposals.Single(item => item.SourceId == "T");
+            if (target.Status != AxisCorrectionStatus.Unsupported) throw new Exception("expected unsupported proposal");
+        }
+        private static void AxisPlanReportsConflictingAnchors()
+        {
+            var plan = IntegerAxisCorrectionPlanner.Plan(
+                new[] {
+                    S(0,0,1000,0,"A0"),
+                    S(0,100,1000,100,"A1"),
+                    S(0,250.0005,1000,250.0005,"B0"),
+                    S(0,350.0005,1000,350.0005,"B1"),
+                    S(0,500.0002,1000,500.0002,"T")
+                },
+                new IntegerAxisPairSettings());
+            AxisCorrectionProposal target = plan.Proposals.Single(item => item.SourceId == "T");
+            if (target.Status != AxisCorrectionStatus.Conflict) throw new Exception("expected conflict");
+            if (target.ConflictingPairCount == 0) throw new Exception("expected conflicting support");
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
