@@ -58,6 +58,8 @@ namespace PlanarLineGeometry.Tests
                 Run("group axis chooses nearest integer evidence", GroupAxisChoosesNearestIntegerEvidence);
                 Run("mutual group axes seed a system", MutualGroupAxesSeedSystem);
                 Run("one-way evidence attaches to seed", OneWayEvidenceAttachesToSeed);
+                Run("seed correction is symmetric", SeedCorrectionIsSymmetric);
+                Run("attached correction follows corrected parent", AttachedCorrectionFollowsCorrectedParent);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -256,6 +258,31 @@ namespace PlanarLineGeometry.Tests
             Eq(1, analysis.AttachedAxisCount);
             GroupedAxisSystemMember attached = analysis.Members.Single(member => member.Role == GroupedAxisSystemRole.Attached);
             Eq(1, attached.Depth);
+        }
+        private static void SeedCorrectionIsSymmetric()
+        {
+            GroupedAxisCorrectionPlan plan = GroupedAxisCorrectionPlanAnalyzer.Plan(
+                new[] { S(0,0,1000,0,"A"), S(0,100.002,1000,100.002,"B") },
+                new GroupedAxisEvidenceSettings());
+            GroupedAxisCorrectionProposal a = plan.Proposals.Single(item => item.Member.Axis.SourceIds.Contains("A"));
+            GroupedAxisCorrectionProposal b = plan.Proposals.Single(item => item.Member.Axis.SourceIds.Contains("B"));
+            Near(.001, a.ShiftY, 1e-10);
+            Near(-.001, b.ShiftY, 1e-10);
+            Near(100, Math.Abs(b.Proposed.Start.Y - a.Proposed.Start.Y), 1e-10);
+        }
+        private static void AttachedCorrectionFollowsCorrectedParent()
+        {
+            GroupedAxisCorrectionPlan plan = GroupedAxisCorrectionPlanAnalyzer.Plan(
+                new[] {
+                    S(0,0,1000,0,"A"),
+                    S(0,100.002,1000,100.002,"B"),
+                    S(0,250.01,1000,250.01,"C")
+                },
+                new GroupedAxisEvidenceSettings());
+            GroupedAxisCorrectionProposal b = plan.Proposals.Single(item => item.Member.Axis.SourceIds.Contains("B"));
+            GroupedAxisCorrectionProposal c = plan.Proposals.Single(item => item.Member.Axis.SourceIds.Contains("C"));
+            Near(150, Math.Abs(c.Proposed.Start.Y - b.Proposed.Start.Y), 1e-10);
+            Near(-.009, c.ShiftY, 1e-10);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
