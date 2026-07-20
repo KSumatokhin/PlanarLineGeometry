@@ -103,11 +103,29 @@ namespace PlanarLineGeometry
             GroupedAxisCorrectionPlan plan = GroupedAxisCorrectionPlanAnalyzer.Plan(
                 aligned,
                 settings.AxisEvidence);
-            var groups = plan.Proposals.Select(proposal => new AxisAlignedLineUnionGroup(
-                proposal.Member.Axis.SourceIds,
-                proposal.Proposed,
-                proposal.Member.Role,
-                proposal.ShiftLength)).ToList();
+            Dictionary<string, GroupedAxisCorrectionProposal> carrierProposals = plan.Proposals
+                .GroupBy(proposal => CarrierKey(proposal.Member.Axis.SourceIds), StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderByDescending(proposal => proposal.Member.Axis.Segment.Length)
+                        .ThenBy(proposal => proposal.Member.Axis.Id, StringComparer.Ordinal)
+                        .First(),
+                    StringComparer.Ordinal);
+            var groups = plan.Proposals.Select(proposal =>
+            {
+                GroupedAxisCorrectionProposal carrier = carrierProposals[CarrierKey(proposal.Member.Axis.SourceIds)];
+                Segment2 sourceAxis = proposal.Member.Axis.Segment;
+                var result = new Segment2(
+                    new Point2(sourceAxis.Start.X + carrier.ShiftX, sourceAxis.Start.Y + carrier.ShiftY),
+                    new Point2(sourceAxis.End.X + carrier.ShiftX, sourceAxis.End.Y + carrier.ShiftY),
+                    sourceAxis.SourceId);
+                return new AxisAlignedLineUnionGroup(
+                    proposal.Member.Axis.SourceIds,
+                    result,
+                    proposal.Member.Role,
+                    carrier.ShiftLength);
+            }).ToList();
             return new AxisAlignedLineUnionResult(
                 groups,
                 corrected,
@@ -116,5 +134,8 @@ namespace PlanarLineGeometry
                 angular.InvalidCount,
                 plan);
         }
+
+        private static string CarrierKey(IReadOnlyList<string> sourceIds) =>
+            string.Join("\u001f", sourceIds.OrderBy(id => id, StringComparer.Ordinal));
     }
 }

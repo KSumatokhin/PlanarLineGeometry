@@ -62,6 +62,7 @@ namespace PlanarLineGeometry.Tests
                 Run("attached correction follows corrected parent", AttachedCorrectionFollowsCorrectedParent);
                 Run("V2 pipeline produces corrected final axes", V2PipelineProducesCorrectedFinalAxes);
                 Run("V2 pipeline respects endpoint shift limit", V2PipelineRespectsEndpointShiftLimit);
+                Run("V2 pipeline keeps one carrier shift across separate intervals", V2PipelineKeepsOneCarrierShiftAcrossSeparateIntervals);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -307,6 +308,18 @@ namespace PlanarLineGeometry.Tests
             AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(new[] { tilted }, settings);
             Eq(1, result.AngularRejectedCount);
             Near(tilted.End.Y, result.Groups[0].Result.End.Y, 1e-10);
+        }
+        private static void V2PipelineKeepsOneCarrierShiftAcrossSeparateIntervals()
+        {
+            AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(
+                new[] {
+                    S(0,0,40,0,"A1"), S(60,0,100,0,"A2"),
+                    S(0,100.002,40,100.002,"B1"), S(60,100.004,100,100.004,"B2")
+                },
+                new AxisAlignedLineUnionSettings());
+            var a = result.Groups.Where(group => group.SourceIds.Contains("A1")).ToList();
+            Eq(2, a.Count);
+            Near(a[0].Result.Start.Y, a[1].Result.Start.Y, 1e-12);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
