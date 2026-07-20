@@ -51,6 +51,9 @@ namespace PlanarLineGeometry.Tests
                 Run("axis plan proposes supported correction", AxisPlanProposesSupportedCorrection);
                 Run("axis plan leaves unsupported line", AxisPlanLeavesUnsupportedLine);
                 Run("axis plan reports conflicting anchors", AxisPlanReportsConflictingAnchors);
+                Run("angular step keeps exact angle", AngularStepKeepsExactAngle);
+                Run("angular step reports endpoint displacement", AngularStepReportsEndpointDisplacement);
+                Run("angular step wraps around 180", AngularStepWrapsAround180);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -174,6 +177,34 @@ namespace PlanarLineGeometry.Tests
             AxisCorrectionProposal target = plan.Proposals.Single(item => item.SourceId == "T");
             if (target.Status != AxisCorrectionStatus.Conflict) throw new Exception("expected conflict");
             if (target.ConflictingPairCount == 0) throw new Exception("expected conflicting support");
+        }
+        private static void AngularStepKeepsExactAngle()
+        {
+            double radians = 30 * Math.PI / 180;
+            AngularStepDiagnostic line = AngularStepAnalyzer.Analyze(
+                new[] { S(0,0,100*Math.Cos(radians),100*Math.Sin(radians),"A") },
+                new AngularStepSettings()).Lines[0];
+            Near(30,line.NearestAngleDegrees);
+            Near(0,line.EndpointShift,1e-10);
+        }
+        private static void AngularStepReportsEndpointDisplacement()
+        {
+            double radians = 5.001 * Math.PI / 180;
+            AngularStepDiagnostic line = AngularStepAnalyzer.Analyze(
+                new[] { S(0,0,10000*Math.Cos(radians),10000*Math.Sin(radians),"A") },
+                new AngularStepSettings()).Lines[0];
+            Near(5,line.NearestAngleDegrees);
+            Near(0.001,line.AngleDeviationDegrees,1e-10);
+            Near(10000*Math.Sin(.001*Math.PI/360),line.EndpointShift,1e-10);
+        }
+        private static void AngularStepWrapsAround180()
+        {
+            double radians = 179.8 * Math.PI / 180;
+            AngularStepDiagnostic line = AngularStepAnalyzer.Analyze(
+                new[] { S(0,0,100*Math.Cos(radians),100*Math.Sin(radians),"A") },
+                new AngularStepSettings()).Lines[0];
+            Near(0,line.NearestAngleDegrees);
+            Near(.2,line.AngleDeviationDegrees,1e-10);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
