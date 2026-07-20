@@ -60,6 +60,8 @@ namespace PlanarLineGeometry.Tests
                 Run("one-way evidence attaches to seed", OneWayEvidenceAttachesToSeed);
                 Run("seed correction is symmetric", SeedCorrectionIsSymmetric);
                 Run("attached correction follows corrected parent", AttachedCorrectionFollowsCorrectedParent);
+                Run("V2 pipeline produces corrected final axes", V2PipelineProducesCorrectedFinalAxes);
+                Run("V2 pipeline respects endpoint shift limit", V2PipelineRespectsEndpointShiftLimit);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -283,6 +285,28 @@ namespace PlanarLineGeometry.Tests
             GroupedAxisCorrectionProposal c = plan.Proposals.Single(item => item.Member.Axis.SourceIds.Contains("C"));
             Near(150, Math.Abs(c.Proposed.Start.Y - b.Proposed.Start.Y), 1e-10);
             Near(-.009, c.ShiftY, 1e-10);
+        }
+        private static void V2PipelineProducesCorrectedFinalAxes()
+        {
+            AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(
+                new[] {
+                    S(0,0,50,0,"A1"), S(50,0,100,0,"A2"),
+                    S(0,100.002,100,100.002,"B")
+                },
+                new AxisAlignedLineUnionSettings());
+            Eq(2, result.Groups.Count);
+            AxisAlignedLineUnionGroup a = result.Groups.Single(group => group.SourceIds.Contains("A1"));
+            AxisAlignedLineUnionGroup b = result.Groups.Single(group => group.SourceIds.Contains("B"));
+            Eq(2, a.SourceIds.Count);
+            Near(100, Math.Abs(b.Result.Start.Y - a.Result.Start.Y), 1e-10);
+        }
+        private static void V2PipelineRespectsEndpointShiftLimit()
+        {
+            Segment2 tilted = Angle(.01, 10000);
+            var settings = new AxisAlignedLineUnionSettings { MaximumEndpointShift = .001 };
+            AxisAlignedLineUnionResult result = AxisAlignedLineUnionPipeline.Run(new[] { tilted }, settings);
+            Eq(1, result.AngularRejectedCount);
+            Near(tilted.End.Y, result.Groups[0].Result.End.Y, 1e-10);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
