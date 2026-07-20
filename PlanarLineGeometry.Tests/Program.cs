@@ -42,6 +42,10 @@ namespace PlanarLineGeometry.Tests
                 Run("shuffle deterministic", ShuffleDeterministic);
                 Run("coordinates remain exact", () => Near(10.123456789, N(S(.123456789,0,10.123456789,0), S(5,0,6,0)).Segments[0].End.X, 1e-12));
                 Run("V1 selection extension invariant", SelectionExtensionInvariant);
+                Run("integer axis strict pair", IntegerAxisStrictPair);
+                Run("integer axis practical candidate", IntegerAxisPracticalCandidate);
+                Run("integer axis requires overlap", IntegerAxisRequiresOverlap);
+                Run("integer axis limits distance", IntegerAxisLimitsDistance);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -78,6 +82,38 @@ namespace PlanarLineGeometry.Tests
             var targetGroup = expanded.Groups.Single(g => target.All(t => g.SourceIds.Contains(t.SourceId)));
             Eq(4,targetGroup.SourceCount);
             Eq(1,targetGroup.ResultCount);
+        }
+        private static void IntegerAxisStrictPair()
+        {
+            var result = IntegerAxisPairAnalyzer.Analyze(
+                new[] { S(0,0,1000,0,"A"), S(0,250,1000,250,"B") },
+                new IntegerAxisPairSettings());
+            Eq(1,result.StrictPairCount);
+            Eq(0,result.CandidatePairCount);
+            Near(250,result.Pairs[0].Distance,1e-12);
+        }
+        private static void IntegerAxisPracticalCandidate()
+        {
+            var result = IntegerAxisPairAnalyzer.Analyze(
+                new[] { S(0,0,1000,0,"A"), S(0,249.9999925,1000,249.9999925,"B") },
+                new IntegerAxisPairSettings());
+            Eq(0,result.StrictPairCount);
+            Eq(1,result.CandidatePairCount);
+            Near(.0000075,result.Pairs[0].Deviation,1e-10);
+        }
+        private static void IntegerAxisRequiresOverlap()
+        {
+            var result = IntegerAxisPairAnalyzer.Analyze(
+                new[] { S(0,0,100,0,"A"), S(200,250,300,250,"B") },
+                new IntegerAxisPairSettings());
+            Eq(0,result.Pairs.Count);
+        }
+        private static void IntegerAxisLimitsDistance()
+        {
+            var result = IntegerAxisPairAnalyzer.Analyze(
+                new[] { S(0,0,100,0,"A"), S(0,3001,100,3001,"B") },
+                new IntegerAxisPairSettings());
+            Eq(0,result.Pairs.Count);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
