@@ -123,6 +123,11 @@ namespace PlanarLineGeometry
                     }
 
                     double nearestInteger = Math.Round(distance, MidpointRounding.AwayFromZero);
+                    if (nearestInteger < 1.0)
+                    {
+                        continue;
+                    }
+
                     double deviation = Math.Abs(distance - nearestInteger);
                     IntegerAxisPairClass classification;
                     if (deviation <= settings.StrictIntegerTolerance)

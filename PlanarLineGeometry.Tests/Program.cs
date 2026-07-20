@@ -46,6 +46,7 @@ namespace PlanarLineGeometry.Tests
                 Run("integer axis practical candidate", IntegerAxisPracticalCandidate);
                 Run("integer axis requires overlap", IntegerAxisRequiresOverlap);
                 Run("integer axis limits distance", IntegerAxisLimitsDistance);
+                Run("integer axis excludes zero width", IntegerAxisExcludesZeroWidth);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -112,6 +113,13 @@ namespace PlanarLineGeometry.Tests
         {
             var result = IntegerAxisPairAnalyzer.Analyze(
                 new[] { S(0,0,100,0,"A"), S(0,3001,100,3001,"B") },
+                new IntegerAxisPairSettings());
+            Eq(0,result.Pairs.Count);
+        }
+        private static void IntegerAxisExcludesZeroWidth()
+        {
+            var result = IntegerAxisPairAnalyzer.Analyze(
+                new[] { S(0,0,100,0,"A"), S(0,.00008453,100,.00008453,"B") },
                 new IntegerAxisPairSettings());
             Eq(0,result.Pairs.Count);
         }
