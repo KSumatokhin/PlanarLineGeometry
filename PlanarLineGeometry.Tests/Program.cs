@@ -56,6 +56,8 @@ namespace PlanarLineGeometry.Tests
                 Run("angular step wraps around 180", AngularStepWrapsAround180);
                 Run("group axes retain source fragments", GroupAxesRetainSourceFragments);
                 Run("group axis chooses nearest integer evidence", GroupAxisChoosesNearestIntegerEvidence);
+                Run("mutual group axes seed a system", MutualGroupAxesSeedSystem);
+                Run("one-way evidence attaches to seed", OneWayEvidenceAttachesToSeed);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -230,6 +232,30 @@ namespace PlanarLineGeometry.Tests
             GroupedAxisEvidence best = analysis.BestByAxis.Single(item => item.Axis.Id == a.Id);
             if (!best.Partner.SourceIds.Contains("C")) throw new Exception("shorter overlap with better integer evidence must win");
             Near(.01, best.Pair.Deviation, 1e-10);
+        }
+        private static void MutualGroupAxesSeedSystem()
+        {
+            GroupedAxisSystemAnalysis analysis = GroupedAxisSystemAnalyzer.Analyze(
+                new[] { S(0,0,1000,0,"A"), S(0,100.001,1000,100.001,"B") },
+                new GroupedAxisEvidenceSettings());
+            Eq(1, analysis.Systems.Count);
+            Eq(2, analysis.SeedAxisCount);
+            Eq(0, analysis.UnresolvedAxisCount);
+        }
+        private static void OneWayEvidenceAttachesToSeed()
+        {
+            GroupedAxisSystemAnalysis analysis = GroupedAxisSystemAnalyzer.Analyze(
+                new[] {
+                    S(0,0,1000,0,"A"),
+                    S(0,100.001,1000,100.001,"B"),
+                    S(0,250.01,1000,250.01,"C")
+                },
+                new GroupedAxisEvidenceSettings());
+            Eq(1, analysis.Systems.Count);
+            Eq(2, analysis.SeedAxisCount);
+            Eq(1, analysis.AttachedAxisCount);
+            GroupedAxisSystemMember attached = analysis.Members.Single(member => member.Role == GroupedAxisSystemRole.Attached);
+            Eq(1, attached.Depth);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
