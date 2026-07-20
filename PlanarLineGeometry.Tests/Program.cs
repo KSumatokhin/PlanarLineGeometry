@@ -41,6 +41,7 @@ namespace PlanarLineGeometry.Tests
                 Run("nested without endpoint search", () => AssertSpan(N(S(0,0,1000,0), S(400,0,401,0)), 0, 1000));
                 Run("shuffle deterministic", ShuffleDeterministic);
                 Run("coordinates remain exact", () => Near(10.123456789, N(S(.123456789,0,10.123456789,0), S(5,0,6,0)).Segments[0].End.X, 1e-12));
+                Run("V1 selection extension invariant", SelectionExtensionInvariant);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -55,6 +56,29 @@ namespace PlanarLineGeometry.Tests
         private static void DuplicateOption() { var settings=Settings(false,false); Eq(1,LineNormalizer.Normalize(new[]{S(0,0,10,0),S(0,0,10,0)},settings).Segments.Count); }
         private static NormalizationSettings Settings(bool overlap,bool adjacent) => new NormalizationSettings { LinearTolerance=1, AngularToleranceDegrees=.1, MergeOverlapping=overlap, MergeAdjacent=adjacent };
         private static void ShuffleDeterministic() { var a=new[]{S(10,0,20,0),S(0,0,10,0),S(5,0,15,0)}; var b=a.Reverse().ToArray(); var x=N(a).Segments[0]; var y=N(b).Segments[0]; Near(x.Start.X,y.Start.X); Near(x.End.X,y.End.X); Near(x.Start.Y,y.Start.Y); }
+        private static void SelectionExtensionInvariant()
+        {
+            var settings = new NormalizationSettings { LinearTolerance=.01, AngularToleranceDegrees=.1 };
+            var target = new[] {
+                S(24910.05167284,50840,24910.05168122,50855,"a"),
+                S(24910.05168872,50855,24910.05245762,52234.99634271,"b"),
+                S(24910.05245762,52234.99634271,24910.05322652,53614.99268542,"c"),
+                S(24910.05322652,53614.99268542,24910.05399542,54989.98902813,"d")
+            };
+            var distractors = Enumerable.Range(0,3192).Select(i =>
+            {
+                var angle = (89.99996 + i * .0000002) * Math.PI / 180;
+                var x = 100000 + i * 100;
+                return S(x,0,x + 100*Math.Cos(angle),100*Math.Sin(angle),"x"+i);
+            });
+            var local = SelectionInvariantLineNormalizer.Normalize(target,settings);
+            var expanded = SelectionInvariantLineNormalizer.Normalize(target.Concat(distractors),settings);
+            Eq(1, local.Groups.Count);
+            Eq(1, local.Segments.Count);
+            var targetGroup = expanded.Groups.Single(g => target.All(t => g.SourceIds.Contains(t.SourceId)));
+            Eq(4,targetGroup.SourceCount);
+            Eq(1,targetGroup.ResultCount);
+        }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
         private static void Eq(int expected,int actual) { if(expected!=actual) throw new Exception("expected "+expected+", actual "+actual); }
