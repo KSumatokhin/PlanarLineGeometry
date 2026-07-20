@@ -27,6 +27,13 @@ V0 was checked in BricsCAD on a real DWG exported from Archicad:
 
 The first consumers are CableCalc and ArchicadDwgOrganizer. Smart Offset is a planned consumer of the later composed pipeline.
 
+## Experimental V1
+
+The selection-invariant axis experiment is recorded in
+[`SELECTION_INVARIANCE_V1.md`](SELECTION_INVARIANCE_V1.md). It is isolated from
+the validated V0 and has been checked on the original 3196-segment
+counterexample and two real DWG selections.
+
 ## Build and test
 
 ```powershell
