@@ -16,6 +16,8 @@ namespace PlanarLineGeometry
     {
         internal AxisCorrectionProposal(
             string sourceId,
+            IReadOnlyList<string> sourceIds,
+            Segment2 representative,
             AxisCorrectionStatus status,
             double shiftX,
             double shiftY,
@@ -24,6 +26,8 @@ namespace PlanarLineGeometry
             double maximumProposalSpread)
         {
             SourceId = sourceId;
+            SourceIds = sourceIds;
+            Representative = representative;
             Status = status;
             ShiftX = shiftX;
             ShiftY = shiftY;
@@ -33,6 +37,8 @@ namespace PlanarLineGeometry
         }
 
         public string SourceId { get; }
+        public IReadOnlyList<string> SourceIds { get; }
+        public Segment2 Representative { get; }
         public AxisCorrectionStatus Status { get; }
         public double ShiftX { get; }
         public double ShiftY { get; }
@@ -40,6 +46,27 @@ namespace PlanarLineGeometry
         public int SupportingPairCount { get; }
         public int ConflictingPairCount { get; }
         public double MaximumProposalSpread { get; }
+
+        public Segment2 ProjectToProposedAxis(Segment2 source)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            Vector2 vector = Representative.End.Subtract(Representative.Start);
+            double length = vector.Length;
+            var direction = new Vector2(vector.X / length, vector.Y / length);
+            Point2 origin = new Point2(
+                Representative.Start.X + ShiftX,
+                Representative.Start.Y + ShiftY);
+            return new Segment2(
+                Project(source.Start, origin, direction),
+                Project(source.End, origin, direction),
+                source.SourceId);
+        }
+
+        private static Point2 Project(Point2 point, Point2 origin, Vector2 direction)
+        {
+            double position = direction.Dot(point.Subtract(origin));
+            return origin.Add(position * direction);
+        }
     }
 
     public sealed class AxisCorrectionPlan
@@ -76,10 +103,16 @@ namespace PlanarLineGeometry
                 .Where(segment => segment != null && segment.Length > 1e-12)
                 .OrderBy(segment => segment.SourceId, StringComparer.Ordinal)
                 .ToList();
-            Dictionary<string, Segment2> byId = segments.ToDictionary(
-                segment => segment.SourceId,
+            IReadOnlyList<AxisGroup> groups = AxisGroupBuilder.Build(
+                segments,
+                settings.CandidateIntegerTolerance,
+                settings.AngularToleranceDegrees);
+            Dictionary<string, AxisGroup> byId = groups.ToDictionary(
+                group => group.AxisId,
                 StringComparer.Ordinal);
-            IntegerAxisPairAnalysis analysis = IntegerAxisPairAnalyzer.Analyze(segments, settings);
+            IntegerAxisPairAnalysis analysis = IntegerAxisPairAnalyzer.Analyze(
+                groups.Select(group => group.Representative),
+                settings);
             var anchors = new HashSet<string>(StringComparer.Ordinal);
             foreach (IntegerAxisPair pair in analysis.Pairs.Where(
                 pair => pair.Classification == IntegerAxisPairClass.Strict))
@@ -88,9 +121,9 @@ namespace PlanarLineGeometry
                 anchors.Add(pair.SourceIdB);
             }
 
-            var proposed = segments.ToDictionary(
-                segment => segment.SourceId,
-                segment => new List<Shift>(),
+            var proposed = groups.ToDictionary(
+                group => group.AxisId,
+                group => new List<Shift>(),
                 StringComparer.Ordinal);
             int conflictingAnchorPairs = 0;
 
@@ -108,26 +141,28 @@ namespace PlanarLineGeometry
                 if (aAnchor)
                 {
                     proposed[pair.SourceIdB].Add(Correction(
-                        byId[pair.SourceIdA],
-                        byId[pair.SourceIdB],
+                        byId[pair.SourceIdA].Representative,
+                        byId[pair.SourceIdB].Representative,
                         pair.NearestInteger));
                 }
                 else if (bAnchor)
                 {
                     proposed[pair.SourceIdA].Add(Correction(
-                        byId[pair.SourceIdB],
-                        byId[pair.SourceIdA],
+                        byId[pair.SourceIdB].Representative,
+                        byId[pair.SourceIdA].Representative,
                         pair.NearestInteger));
                 }
             }
 
             var result = new List<AxisCorrectionProposal>();
-            foreach (Segment2 segment in segments)
+            foreach (AxisGroup group in groups)
             {
-                if (anchors.Contains(segment.SourceId))
+                if (anchors.Contains(group.AxisId))
                 {
                     result.Add(new AxisCorrectionProposal(
-                        segment.SourceId,
+                        group.AxisId,
+                        group.SourceIds,
+                        group.Representative,
                         AxisCorrectionStatus.Anchor,
                         0,
                         0,
@@ -137,11 +172,13 @@ namespace PlanarLineGeometry
                     continue;
                 }
 
-                List<Shift> shifts = proposed[segment.SourceId];
+                List<Shift> shifts = proposed[group.AxisId];
                 if (shifts.Count == 0)
                 {
                     result.Add(new AxisCorrectionProposal(
-                        segment.SourceId,
+                        group.AxisId,
+                        group.SourceIds,
+                        group.Representative,
                         AxisCorrectionStatus.Unsupported,
                         0,
                         0,
@@ -160,7 +197,9 @@ namespace PlanarLineGeometry
                     ? AxisCorrectionStatus.Consistent
                     : AxisCorrectionStatus.Conflict;
                 result.Add(new AxisCorrectionProposal(
-                    segment.SourceId,
+                    group.AxisId,
+                    group.SourceIds,
+                    group.Representative,
                     status,
                     meanX,
                     meanY,
