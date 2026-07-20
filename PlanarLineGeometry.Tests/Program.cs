@@ -65,7 +65,7 @@ namespace PlanarLineGeometry.Tests
                 S(24910.05245762,52234.99634271,24910.05322652,53614.99268542,"c"),
                 S(24910.05322652,53614.99268542,24910.05399542,54989.98902813,"d")
             };
-            var distractors = Enumerable.Range(0,400).Select(i =>
+            var distractors = Enumerable.Range(0,3192).Select(i =>
             {
                 var angle = (89.99996 + i * .0000002) * Math.PI / 180;
                 var x = 100000 + i * 100;
