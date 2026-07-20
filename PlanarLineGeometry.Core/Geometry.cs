@@ -49,6 +49,7 @@ namespace PlanarLineGeometry
         public double MaxOffset { get; internal set; }
         public double MaxAngleDegrees { get; internal set; }
         public IReadOnlyList<string> SourceIds { get; internal set; }
+        internal IReadOnlyList<Segment2> ResultSegments { get; set; }
     }
 
     public sealed class NormalizationResult

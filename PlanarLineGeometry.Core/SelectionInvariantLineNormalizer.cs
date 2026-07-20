@@ -199,7 +199,8 @@ namespace PlanarLineGeometry
                 MeanOffset = offsets.Average(),
                 MaxOffset = offsets.Max(),
                 MaxAngleDegrees = maxAngle * 180 / Math.PI,
-                SourceIds = lines.Select(line => line.Source.SourceId).ToList()
+                SourceIds = lines.Select(line => line.Source.SourceId).ToList(),
+                ResultSegments = result
             };
             return true;
         }

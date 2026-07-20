@@ -54,6 +54,8 @@ namespace PlanarLineGeometry.Tests
                 Run("angular step keeps exact angle", AngularStepKeepsExactAngle);
                 Run("angular step reports endpoint displacement", AngularStepReportsEndpointDisplacement);
                 Run("angular step wraps around 180", AngularStepWrapsAround180);
+                Run("group axes retain source fragments", GroupAxesRetainSourceFragments);
+                Run("group axis chooses nearest integer evidence", GroupAxisChoosesNearestIntegerEvidence);
                 Console.WriteLine("PlanarLineGeometry.Tests: " + passed + " tests passed."); return 0;
             }
             catch(Exception e) { Console.Error.WriteLine(e.Message); return 1; }
@@ -205,6 +207,29 @@ namespace PlanarLineGeometry.Tests
                 new AngularStepSettings()).Lines[0];
             Near(0,line.NearestAngleDegrees);
             Near(.2,line.AngleDeviationDegrees,1e-10);
+        }
+        private static void GroupAxesRetainSourceFragments()
+        {
+            GroupedAxisEvidenceAnalysis analysis = GroupedAxisEvidenceAnalyzer.Analyze(
+                new[] { S(0,0,50,0,"A1"), S(50,0,100,0,"A2"), S(0,249.9999,100,249.9999,"B") },
+                new GroupedAxisEvidenceSettings());
+            Eq(2, analysis.Axes.Count);
+            Eq(2, analysis.Axes.Single(axis => axis.SourceIds.Contains("A1")).SourceIds.Count);
+            Eq(1, analysis.PairAnalysis.Pairs.Count);
+        }
+        private static void GroupAxisChoosesNearestIntegerEvidence()
+        {
+            GroupedAxisEvidenceAnalysis analysis = GroupedAxisEvidenceAnalyzer.Analyze(
+                new[] {
+                    S(0,0,1000,0,"A"),
+                    S(0,250.2,1000,250.2,"B"),
+                    S(100,500.01,200,500.01,"C")
+                },
+                new GroupedAxisEvidenceSettings());
+            GroupedAxis a = analysis.Axes.Single(axis => axis.SourceIds.Contains("A"));
+            GroupedAxisEvidence best = analysis.BestByAxis.Single(item => item.Axis.Id == a.Id);
+            if (!best.Partner.SourceIds.Contains("C")) throw new Exception("shorter overlap with better integer evidence must win");
+            Near(.01, best.Pair.Deviation, 1e-10);
         }
         private static void AssertSpan(NormalizationResult r,double min,double max) { Eq(1,r.Segments.Count); var s=r.Segments[0]; Near(min,Math.Min(s.Start.X,s.End.X)); Near(max,Math.Max(s.Start.X,s.End.X)); }
         private static void Run(string name,Action action) { try { action(); passed++; } catch(Exception e) { throw new Exception(name+": "+e.Message,e); } }
